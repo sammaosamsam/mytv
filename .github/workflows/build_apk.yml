@@ -36,15 +36,12 @@ jobs:
     
     - name: Build APK
       run: |
-        flutter build apk --release \
-          --target-platform android-arm64,android-arm \
-          --split-per-abi
+        flutter build apk --release --verbose
     
     - name: Prepare artifacts
       run: |
         mkdir -p dist
-        cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/爱家影视-arm64.apk
-        cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/爱家影视-armv7a.apk
+        cp build/app/outputs/flutter-apk/app-release.apk dist/爱家影视.apk
     
     - name: Upload APK
       uses: actions/upload-artifact@v4

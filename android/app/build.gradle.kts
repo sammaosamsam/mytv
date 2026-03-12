@@ -11,7 +11,8 @@ plugins {
 android {
     namespace = "org.moontechlab.selene"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "29.0.14033849"
+    // 使用Flutter默认的NDK版本，避免环境不兼容
+    // ndkVersion = "29.0.14033849"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -55,17 +56,13 @@ android {
             if (hasSigningConfig) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
-                // Fallback to debug signing for local development
+                // Fallback to debug signing for CI builds
                 signingConfig = signingConfigs.getByName("debug")
             }
             
-            // Enable R8 code shrinking, obfuscation, and optimization
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            // Disable R8 for CI builds to avoid issues
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
         
         debug {
