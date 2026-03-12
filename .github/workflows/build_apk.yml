@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
@@ -24,13 +24,13 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.22.0'
         channel: 'stable'
+        flutter-version: '3.24.0'
     
-    - name: Check Flutter
+    - name: Check versions
       run: |
-        flutter doctor -v
         flutter --version
+        dart --version
     
     - name: Get dependencies
       run: flutter pub get
@@ -39,26 +39,16 @@ jobs:
       run: |
         flutter build apk --release \
           --target-platform android-arm64,android-arm \
-          --split-per-abi \
-          --verbose
-      continue-on-error: true
+          --split-per-abi
     
-    - name: Check build output
-      run: |
-        ls -la build/app/outputs/flutter-apk/ || echo "Build output directory not found"
-        find build -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
-    
-    - name: Rename APK files
-      if: success()
+    - name: Prepare artifacts
       run: |
         mkdir -p dist
-        cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/爱家影视-arm64.apk || echo "ARM64 APK not found"
-        cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/爱家影视-armv7a.apk || echo "ARMv7a APK not found"
+        cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/爱家影视-arm64.apk
+        cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/爱家影视-armv7a.apk
     
     - name: Upload APK
-      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: 爱家影视-APK
         path: dist/*.apk
-        if-no-files-found: warn
