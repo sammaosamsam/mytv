@@ -159,8 +159,17 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     if (widget.headers != oldWidget.headers && widget.headers != null) {
       _currentHeaders = widget.headers;
     }
-    if (widget.url != oldWidget.url && widget.url != null) {
-      unawaited(_updateDataSource(widget.url!));
+    // 只有当URL真正改变且播放器未 disposed 时才更新数据源
+    if (widget.url != oldWidget.url && 
+        widget.url != null && 
+        !_playerDisposed &&
+        _isInitialized) {
+      // 使用微任务延迟更新，避免快速切换时的竞态条件
+      Future.microtask(() async {
+        if (mounted && !_playerDisposed) {
+          await _updateDataSource(widget.url!);
+        }
+      });
     }
   }
 
@@ -284,18 +293,23 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     Duration? startAt,
     Map<String, String>? headers,
   }) async {
-    if (_playerDisposed) {
+    // 多重检查确保播放器状态正确
+    if (_playerDisposed || _player == null || !mounted) {
       return;
     }
+    
+    // 如果URL相同，不需要更新
+    if (_currentUrl == url && _isInitialized) {
+      return;
+    }
+    
     _currentUrl = url;
     if (headers != null) {
       _currentHeaders = headers;
     }
 
-    if (_player == null) {
-      await _initializePlayer();
-      return;
-    }
+    // 确保在设置状态前widget仍然挂载
+    if (!mounted || _playerDisposed) return;
 
     setState(() {
       _isLoadingVideo = true;
@@ -303,6 +317,16 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
 
     try {
       final currentSpeed = _player!.state.rate;
+      
+      // 先停止当前播放，避免资源冲突
+      await _player!.pause();
+      
+      // 添加短暂延迟，确保资源释放
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // 再次检查状态
+      if (!mounted || _playerDisposed) return;
+      
       await _player!.open(
         Media(
           url,
@@ -311,18 +335,21 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
         ),
         play: true,
       );
-      _playbackSpeed.value = currentSpeed;
-      await _player!.setRate(currentSpeed);
-      if (mounted) {
+      
+      // 检查播放器是否仍然有效
+      if (_player != null && !_playerDisposed) {
+        _playbackSpeed.value = currentSpeed;
+        await _player!.setRate(currentSpeed);
+      }
+      
+      if (mounted && !_playerDisposed) {
         setState(() {
           _hasCompleted = false;
-          // _isLoadingVideo = false;
         });
       }
-      // widget.onReady?.call();
     } catch (error) {
       debugPrint('VideoPlayerWidget: error while changing source $error');
-      if (mounted) {
+      if (mounted && !_playerDisposed) {
         setState(() {
           _isLoadingVideo = false;
         });
@@ -427,12 +454,35 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
       return;
     }
     _playerDisposed = true;
-    _positionSubscription?.cancel();
-    _playingSubscription?.cancel();
-    _completedSubscription?.cancel();
-    _durationSubscription?.cancel();
+    
+    // 先取消所有订阅，避免回调中访问已释放的资源
+    await _positionSubscription?.cancel();
+    _positionSubscription = null;
+    await _playingSubscription?.cancel();
+    _playingSubscription = null;
+    await _completedSubscription?.cancel();
+    _completedSubscription = null;
+    await _durationSubscription?.cancel();
+    _durationSubscription = null;
+    
     _progressListeners.clear();
-    await _player?.dispose();
+    
+    // 先暂停播放器，再释放资源
+    try {
+      await _player?.pause();
+    } catch (e) {
+      debugPrint('VideoPlayerWidget: error pausing player during dispose: $e');
+    }
+    
+    // 添加短暂延迟确保资源释放完成
+    await Future.delayed(const Duration(milliseconds: 50));
+    
+    try {
+      await _player?.dispose();
+    } catch (e) {
+      debugPrint('VideoPlayerWidget: error disposing player: $e');
+    }
+    
     _player = null;
     _videoController = null;
   }

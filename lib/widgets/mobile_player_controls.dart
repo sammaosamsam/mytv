@@ -121,43 +121,79 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
   }
 
   void _listenPlayerStreams() {
-    _subscriptions.add(widget.player.stream.playing.listen((playing) {
-      if (!mounted) return;
-      if (playing && _controlsVisible) {
-        _startHideTimer();
-      }
-      if (!playing) {
-        _hideTimer?.cancel();
-        if (!_controlsVisible) {
-          setState(() => _controlsVisible = true);
-          widget.onControlsVisibilityChanged(true);
+    // 检查播放器是否有效
+    if (widget.player == null) return;
+    
+    try {
+      _subscriptions.add(widget.player.stream.playing.listen((playing) {
+        if (!mounted) return;
+        if (playing && _controlsVisible) {
+          _startHideTimer();
         }
-      }
-    }));
+        if (!playing) {
+          _hideTimer?.cancel();
+          if (!_controlsVisible) {
+            setState(() => _controlsVisible = true);
+            widget.onControlsVisibilityChanged(true);
+          }
+        }
+      }, onError: (error) {
+        debugPrint('MobilePlayerControls: playing stream error: $error');
+      }));
+    } catch (e) {
+      debugPrint('MobilePlayerControls: error subscribing to playing stream: $e');
+    }
 
-    _subscriptions.add(widget.player.stream.position.listen((_) {
-      if (!mounted) return;
-      if (_controlsVisible && !_isSeekingViaSwipe) {
+    try {
+      _subscriptions.add(widget.player.stream.position.listen((_) {
+        if (!mounted) return;
+        if (_controlsVisible && !_isSeekingViaSwipe) {
+          setState(() {});
+        }
+      }, onError: (error) {
+        debugPrint('MobilePlayerControls: position stream error: $error');
+      }));
+    } catch (e) {
+      debugPrint('MobilePlayerControls: error subscribing to position stream: $e');
+    }
+
+    try {
+      _subscriptions.add(widget.player.stream.completed.listen((_) {
+        if (!mounted) return;
         setState(() {});
-      }
-    }));
-
-    _subscriptions.add(widget.player.stream.completed.listen((_) {
-      if (!mounted) return;
-      setState(() {});
-    }));
+      }, onError: (error) {
+        debugPrint('MobilePlayerControls: completed stream error: $error');
+      }));
+    } catch (e) {
+      debugPrint('MobilePlayerControls: error subscribing to completed stream: $e');
+    }
   }
 
   @override
   void dispose() {
-    for (final subscription in _subscriptions) {
-      subscription.cancel();
-    }
+    // 先取消所有定时器
     _hideTimer?.cancel();
     _volumeHideTimer?.cancel();
     _brightnessHideTimer?.cancel();
     _timeUpdateTimer?.cancel();
-    VolumeController.instance.showSystemUI = true;
+    
+    // 取消所有流订阅
+    for (final subscription in _subscriptions) {
+      try {
+        subscription.cancel();
+      } catch (e) {
+        debugPrint('MobilePlayerControls: error canceling subscription: $e');
+      }
+    }
+    _subscriptions.clear();
+    
+    // 恢复系统音量UI
+    try {
+      VolumeController.instance.showSystemUI = true;
+    } catch (e) {
+      debugPrint('MobilePlayerControls: error restoring system UI: $e');
+    }
+    
     super.dispose();
   }
 

@@ -158,17 +158,26 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
   }
 
   void _switchChannel(LiveChannel channel) {
+    // 避免重复切换到同一个频道
+    if (_currentChannel.id == channel.id) {
+      return;
+    }
+    
     setState(() {
       _currentChannel = channel;
       _isLoading = true;
       _loadingMessage = '切换频道...';
     });
 
-    // 重新加载 EPG
-    _loadEpgData();
-
-    // 滚动到当前频道
-    _scrollToCurrentChannel();
+    // 使用延迟确保UI更新后再加载EPG
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        // 重新加载 EPG
+        _loadEpgData();
+        // 滚动到当前频道
+        _scrollToCurrentChannel();
+      }
+    });
   }
 
   @override
