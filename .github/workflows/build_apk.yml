@@ -42,8 +42,19 @@ jobs:
     - name: Get dependencies
       run: flutter pub get
     
-    - name: Build APK
-      run: flutter build apk --debug
+    - name: Build APK with verbose output
+      run: |
+        echo "=== Starting Flutter build ==="
+        flutter build apk --debug --verbose 2>&1 | tee build_output.txt
+        echo "=== Build process finished ==="
+      shell: bash
+    
+    - name: Show error if build failed
+      if: failure()
+      run: |
+        echo "=== BUILD FAILED - Last 200 lines ==="
+        tail -n 200 build_output.txt
+      shell: bash
     
     - name: Prepare artifacts
       run: |
