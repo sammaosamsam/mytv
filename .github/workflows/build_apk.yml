@@ -34,14 +34,26 @@ jobs:
     - name: Get dependencies
       run: flutter pub get
     
+    - name: Clean build
+      run: flutter clean
+    
+    - name: Get dependencies again
+      run: flutter pub get
+    
     - name: Build APK
       run: |
-        flutter build apk --release --verbose
+        flutter build apk --debug 2>&1 | tee build.log || true
+        if [ ! -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
+          echo "=== BUILD FAILED - Showing last 100 lines of log ==="
+          tail -n 100 build.log
+          exit 1
+        fi
+      shell: bash
     
     - name: Prepare artifacts
       run: |
         mkdir -p dist
-        cp build/app/outputs/flutter-apk/app-release.apk dist/爱家影视.apk
+        cp build/app/outputs/flutter-apk/app-debug.apk dist/爱家影视.apk
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
