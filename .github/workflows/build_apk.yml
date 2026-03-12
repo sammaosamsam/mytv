@@ -31,18 +31,16 @@ jobs:
         flutter --version
         dart --version
     
-    - name: Setup Flutter environment
+    - name: Create local.properties
       run: |
-        echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> $GITHUB_ENV
-        flutter doctor -v
+        echo "flutter.sdk=${FLUTTER_ROOT}" > android/local.properties
+        cat android/local.properties
     
     - name: Get dependencies
       run: flutter pub get
     
     - name: Build APK
-      run: |
-        export FLUTTER_ROOT="${FLUTTER_ROOT}"
-        flutter build apk --debug
+      run: flutter build apk --debug
     
     - name: Prepare artifacts
       run: |
