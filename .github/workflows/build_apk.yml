@@ -31,24 +31,18 @@ jobs:
         flutter --version
         dart --version
     
+    - name: Setup Flutter environment
+      run: |
+        echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> $GITHUB_ENV
+        flutter doctor -v
+    
     - name: Get dependencies
-      run: flutter pub get
-    
-    - name: Clean build
-      run: flutter clean
-    
-    - name: Get dependencies again
       run: flutter pub get
     
     - name: Build APK
       run: |
-        flutter build apk --debug 2>&1 | tee build.log || true
-        if [ ! -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
-          echo "=== BUILD FAILED - Showing last 100 lines of log ==="
-          tail -n 100 build.log
-          exit 1
-        fi
-      shell: bash
+        export FLUTTER_ROOT="${FLUTTER_ROOT}"
+        flutter build apk --debug
     
     - name: Prepare artifacts
       run: |
