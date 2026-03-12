@@ -26,42 +26,46 @@ jobs:
       with:
         channel: 'stable'
     
-    - name: Check versions
+    - name: Verify Flutter installation
       run: |
         flutter --version
-        dart --version
+        flutter doctor -v
     
     - name: Create local.properties
       run: |
         echo "flutter.sdk=${FLUTTER_ROOT}" > android/local.properties
-        cat android/local.properties
-    
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
     
     - name: Get dependencies
       run: flutter pub get
     
-    - name: Build APK with verbose output
-      run: |
-        echo "=== Starting Flutter build ==="
-        flutter build apk --debug --verbose 2>&1 | tee build_output.txt
-        echo "=== Build process finished ==="
-      shell: bash
+    - name: Analyze code
+      run: flutter analyze || true
     
-    - name: Show error if build failed
-      if: failure()
+    - name: Build APK
+      id: build
       run: |
-        echo "=== BUILD FAILED - Last 200 lines ==="
-        tail -n 200 build_output.txt
-      shell: bash
+        echo "::group::Flutter Build Output"
+        flutter build apk --debug 2>&1 | while IFS= read -r line; do
+          echo "$line"
+        done
+        echo "::endgroup::"
+      continue-on-error: true
     
-    - name: Prepare artifacts
+    - name: Check build result
       run: |
-        mkdir -p dist
-        cp build/app/outputs/flutter-apk/app-debug.apk dist/爱家影视.apk
+        if [ -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
+          echo "✅ Build successful!"
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-debug.apk dist/爱家影视.apk
+        else
+          echo "❌ Build failed!"
+          echo "=== Checking for error logs ==="
+          find build -name "*.log" -exec cat {} \; 2>/dev/null || true
+          exit 1
+        fi
     
     - name: Upload APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: 爱家影视-APK
