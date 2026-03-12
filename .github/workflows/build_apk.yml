@@ -36,14 +36,14 @@ jobs:
         echo "flutter.sdk=${FLUTTER_ROOT}" > android/local.properties
         cat android/local.properties
     
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+    
     - name: Get dependencies
       run: flutter pub get
     
-    - name: Build APK with full error output
-      run: |
-        cd android
-        ./gradlew assembleDebug --stacktrace --info 2>&1 | head -n 500
-      shell: bash
+    - name: Build APK
+      run: flutter build apk --debug
     
     - name: Prepare artifacts
       run: |
